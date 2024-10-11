@@ -1,156 +1,163 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableWithoutFeedback, StyleSheet, Dimensions } from 'react-native';
 
-// Get the screen dimensions
+// Get screen dimensions
 const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
+
+// Bird dimensions
 const birdWidth = 30;
 const birdHeight = 30;
 
+// Pipe dimensions and gap
 const pipeWidth = 50;
-const gapHeight = 150; // Gap between pipes
-const pipeSpeed = 5; // Speed at which pipes move to the left
+const gapHeight = 175;
+const pipeSpeed = 5; // Speed at which pipes move
 
 export default function App() {
-  // State for the bird's position
-  const [birdPosition, setBirdPosition] = useState(screenHeight / 2 - birdHeight / 2); // Start in the center
-  const [gravity, setGravity] = useState(0); // Start with no gravity
-  const [isGameRunning, setIsGameRunning] = useState(false); // If the game is active
+  // Bird's initial position
+  const [birdPosition, setBirdPosition] = useState(screenHeight / 2 - birdHeight / 2);
+  const [gravity, setGravity] = useState(0); // Controls bird's movement (gravity or upward force)
+  const [isGameRunning, setIsGameRunning] = useState(false); // Game state (running or not)
+  const [score, setScore] = useState(0); // Game score
 
-  const [score, setScore] = useState(0); // Counter for score
-
-
-  // Pipes state: array of pipe objects { xPosition, height, scored }
+  // Pipes configuration (array of pipe objects)
   const [pipes, setPipes] = useState([
     {
-      xPosition: screenWidth, // Start the pipe at the right edge of the screen
-      pipeHeight: Math.random() * (screenHeight / 2), // Random height for the first pipe
-      scored: false 
+      xPosition: screenWidth, // Pipe's initial x position (offscreen)
+      pipeHeight: Math.random() * (screenHeight / 2), // Random height for each pipe
+      scored: false, // Whether the player has passed this pipe (to update score)
+      hasPowerUp: Math.random() < 0.25 // Randomly assign a power-up
     }
   ]);
 
-  // Function to reset the game
+  // Resets the game when it starts or when the game over condition is met
   const resetGame = () => {
-    setBirdPosition(screenHeight / 2 - birdHeight / 2); // Reset the bird to the center
-    setGravity(0); // Reset gravity to 0
+    setBirdPosition(screenHeight / 2 - birdHeight / 2); // Reset bird's position
+    setGravity(0); // No initial gravity when the game is reset
     setIsGameRunning(true); // Start the game
-    setScore(0);
-    setPipes([
+    setScore(0); // Reset score
+    setPipes([ // Reset pipes to a new configuration
       {
         xPosition: screenWidth,
         pipeHeight: Math.random() * (screenHeight / 2),
-        scored: false 
+        scored: false,
       }
-    ]); // Reset pipes
+    ]);
   };
 
-  // Effect to make the bird fall
+  // Handles the bird's movement by updating its position based on gravity or upward force
   useEffect(() => {
     if (isGameRunning) {
       const intervalId = setInterval(() => {
-        setBirdPosition((prev) => prev + gravity);
-      }, 30);
-      return () => clearInterval(intervalId);
+        setBirdPosition((prev) => prev + gravity); // Update bird's position
+      }, 30); // Movement interval
+      return () => clearInterval(intervalId); // Clear the interval when not running
     }
   }, [isGameRunning, gravity]);
 
-  // Effect to move pipes and generate new ones
+  // Handles pipe movement and score updates
   useEffect(() => {
     if (isGameRunning) {
       const intervalId = setInterval(() => {
         setPipes((prevPipes) => {
+          // Move pipes to the left
           let newPipes = prevPipes.map(pipe => ({
             ...pipe,
-            xPosition: pipe.xPosition - pipeSpeed // Move each pipe to the left
+            xPosition: pipe.xPosition - pipeSpeed // Move pipe to the left
           }));
 
-          const birdXPosition = screenWidth / 2 - birdWidth / 2; // Bird X pos
-          
+          const birdXPosition = screenWidth / 2 - birdWidth / 2; // Bird's x-position
+
+          // Update score when bird passes a pipe
           newPipes = newPipes.map(pipe => {
-            // Verifies if bird overpasses the coming pipes.
             if (!pipe.scored && birdXPosition > pipe.xPosition + pipeWidth) {
-              // Score goes up if bird passes the right end of pipe.
-              setScore(prevScore => prevScore + 1);
-              pipe.scored = true; // Bird overpass the pipe 
+              setScore(prevScore => prevScore + 1); // Increment score
+              pipe.scored = true; // Mark pipe as passed
             }
             return pipe;
           });
 
-          // Check if the first pipe has gone off screen, if so, remove it
+          // Remove pipes that go off-screen
           if (newPipes[0].xPosition + pipeWidth < 0) {
-            newPipes.shift(); // Remove the first pipe
+            newPipes.shift();
           }
 
-          // Add a new pipe when the last one is far enough to the left
+          // Add new pipes as old ones move out of view
           if (newPipes[newPipes.length - 1].xPosition < screenWidth - 300) {
             newPipes.push({
               xPosition: screenWidth,
-              pipeHeight: Math.random() * (screenHeight / 2), // Random height for the new pipe
-              scored: false 
+              pipeHeight: Math.random() * (screenHeight / 2),
+              scored: false,
+              hasPowerUp: Math.random() < 0.25 // Random chance for a power-up
             });
           }
 
-          return newPipes;
+          return newPipes; // Update pipes state
         });
       }, 30);
 
-      return () => clearInterval(intervalId);
+      return () => clearInterval(intervalId); // Clear the interval when not running
     }
   }, [isGameRunning]);
 
-  // Handle tap to jump
-  const handleTap = () => {
+  // Handle touch event when screen is pressed
+  const handlePressIn = () => {
     if (!isGameRunning) {
-      resetGame(); // Restart the game if not active
+      resetGame(); // Start the game if not running
     } else {
-      setGravity(5); // Apply gravity when tapping
-      setBirdPosition((prev) => Math.max(prev - 50, 0)); // Jump (go up), but don't go off the screen
+      setGravity(-10); // Move bird up while touching the screen
     }
   };
 
-  // Effect to check for collisions with the ground and the ceiling
-  useEffect(() => {
-    const birdBottom = birdPosition + birdHeight;
-    const birdTop = birdPosition;
-    const birdXPosition = screenWidth / 2 - birdWidth / 2;
+  // Handle touch event when screen is released
+  const handlePressOut = () => {
+    setGravity(10); // Apply gravity to move bird down when screen is released
+  };
 
-    // Checks if bird touches ceiling.
+  // Detect collisions and check if the bird goes out of bounds
+  useEffect(() => {
+    const birdBottom = birdPosition + birdHeight; // Bird's bottom y-position
+    const birdTop = birdPosition; // Bird's top y-position
+    const birdXPosition = screenWidth / 2 - birdWidth / 2; // Bird's x-position
+
+    // End game if the bird hits the top of the screen
     if (birdTop <= 0) {
-      setIsGameRunning(false); // End game.
+      setIsGameRunning(false);
       return;
     }
 
+    // Check for collisions with pipes
     pipes.forEach(pipe => {
       const pipeLeft = pipe.xPosition;
       const pipeRight = pipe.xPosition + pipeWidth;
 
-      // Check if the bird is within the horizontal range of a pipe
+      // Check if bird is horizontally aligned with a pipe
       if (birdXPosition + birdWidth > pipeLeft && birdXPosition < pipeRight) {
-        // Now check if it's colliding vertically with either the top or bottom pipe
         const pipeBottomY = pipe.pipeHeight + gapHeight;
+        // Check for collision with the pipe (either top or bottom)
         if (birdTop < pipe.pipeHeight || birdBottom > pipeBottomY) {
-          setIsGameRunning(false); // End game if collision happens
+          setIsGameRunning(false); // End game if collision detected
         }
       }
     });
 
   }, [birdPosition, pipes]);
 
-  //All the visuals.
+  // Render the game view and pipes
   return (
-    <TouchableWithoutFeedback onPress={handleTap}>
+    <TouchableWithoutFeedback onPressIn={handlePressIn} onPressOut={handlePressOut}>
       <View style={styles.container}>
         {/* Bird */}
         <View style={[styles.bird, { top: birdPosition }]} />
 
-        {/* Game Over text */}  
+        {/* Display "Game Over" and "Tap to Start" text when the game is not running */}
         {!isGameRunning && <Text style={styles.gameOver}>Game Over</Text>}
         {!isGameRunning && <Text style={styles.startText}>Tap to Start</Text>}
 
-        {/* Pipes */}
+        {/* Render pipes and power-ups */}
         {pipes.map((pipe, index) => (
           <React.Fragment key={index}>
-            {/* Bottom Pipe */}
             <View
               style={[styles.pipe, {
                 left: pipe.xPosition,
@@ -159,7 +166,6 @@ export default function App() {
                 width: pipeWidth
               }]}
             />
-            {/* Top Pipe */}
             <View
               style={[styles.pipe, {
                 left: pipe.xPosition,
@@ -168,30 +174,43 @@ export default function App() {
                 width: pipeWidth
               }]}
             />
+
+            {/* Render power-ups randomly */}
+            {pipe.hasPowerUp && (
+              <View
+                style={[styles.powerUp, {
+                  left: pipe.xPosition + pipeWidth / 2 - birdWidth / 2,
+                  top: pipe.pipeHeight + (gapHeight / 2) - birdHeight / 2,
+                }]}
+              />
+            )}
           </React.Fragment>
         ))}
 
+        {/* Display current score */}
         <Text style={styles.score}>Score: {score}</Text>
 
       </View>
     </TouchableWithoutFeedback>
   );
-
 }
 
+// Styles for various components in the game
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#70c5ce', // Background color (sky)
+    backgroundColor: '#70c5ce',
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   bird: {
     position: 'absolute',
-    backgroundColor: 'yellow', // Yellow rectangle for the bird
+    backgroundColor: 'yellow',
     width: birdWidth,
     height: birdHeight,
   },
+
   gameOver: {
     position: 'absolute',
     zIndex: 10,
@@ -200,13 +219,15 @@ const styles = StyleSheet.create({
     color: 'red',
     fontWeight: 'bold',
   },
+
   startText: {
     position: 'absolute',
     zIndex: 10,
-    top: screenHeight / 2 + 30,
+    top: screenHeight / 2 + 50,
     fontSize: 20,
-    color: 'white',
+    color: 'black',
   },
+
   pipe: {
     position: 'absolute',
     backgroundColor: 'green',
@@ -214,9 +235,16 @@ const styles = StyleSheet.create({
 
   score: {
     position: 'absolute',
-    zIndex: 10,
-    top: screenHeight / 2 + 60,
-    fontSize: 20,
-    color: 'black',
+    top: 50,
+    fontSize: 24,
+    color: 'white',
+  },
+
+  powerUp: {
+    position: 'absolute',
+    width: birdWidth,
+    height: birdHeight,
+    backgroundColor: 'blue',
+    borderRadius: birdWidth / 2,
   }
 });
