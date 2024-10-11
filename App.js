@@ -17,14 +17,15 @@ export default function App() {
   const [gravity, setGravity] = useState(0); // Start with no gravity
   const [isGameRunning, setIsGameRunning] = useState(false); // If the game is active
 
-  const [score, setScore] = useState(0); // Contador para las tuberías pasadas
+  const [score, setScore] = useState(0); // Counter for score
 
 
-  // Pipes state: array of pipe objects { xPosition, height }
+  // Pipes state: array of pipe objects { xPosition, height, scored }
   const [pipes, setPipes] = useState([
     {
       xPosition: screenWidth, // Start the pipe at the right edge of the screen
-      pipeHeight: Math.random() * (screenHeight / 2) // Random height for the first pipe
+      pipeHeight: Math.random() * (screenHeight / 2), // Random height for the first pipe
+      scored: false 
     }
   ]);
 
@@ -37,7 +38,8 @@ export default function App() {
     setPipes([
       {
         xPosition: screenWidth,
-        pipeHeight: Math.random() * (screenHeight / 2)
+        pipeHeight: Math.random() * (screenHeight / 2),
+        scored: false 
       }
     ]); // Reset pipes
   };
@@ -62,17 +64,29 @@ export default function App() {
             xPosition: pipe.xPosition - pipeSpeed // Move each pipe to the left
           }));
 
+          const birdXPosition = screenWidth / 2 - birdWidth / 2; // Bird X pos
+          
+          newPipes = newPipes.map(pipe => {
+            // Verifies if bird overpasses the coming pipes.
+            if (!pipe.scored && birdXPosition > pipe.xPosition + pipeWidth) {
+              // Score goes up if bird passes the right end of pipe.
+              setScore(prevScore => prevScore + 1);
+              pipe.scored = true; // Bird overpass the pipe 
+            }
+            return pipe;
+          });
+
           // Check if the first pipe has gone off screen, if so, remove it
           if (newPipes[0].xPosition + pipeWidth < 0) {
             newPipes.shift(); // Remove the first pipe
-            setScore(prevScore => prevScore + 1);
           }
 
           // Add a new pipe when the last one is far enough to the left
           if (newPipes[newPipes.length - 1].xPosition < screenWidth - 300) {
             newPipes.push({
               xPosition: screenWidth,
-              pipeHeight: Math.random() * (screenHeight / 2) // Random height for the new pipe
+              pipeHeight: Math.random() * (screenHeight / 2), // Random height for the new pipe
+              scored: false 
             });
           }
 
@@ -158,7 +172,6 @@ export default function App() {
         ))}
 
         <Text style={styles.score}>Score: {score}</Text>
-
 
       </View>
     </TouchableWithoutFeedback>
