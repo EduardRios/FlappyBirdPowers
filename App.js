@@ -57,6 +57,7 @@ export default function App() {
     ]);
   };
 
+
   // Handles the bird's movement by updating its position based on gravity or upward force
   useEffect(() => {
     if (isGameRunning) {
