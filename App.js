@@ -14,12 +14,21 @@ const pipeWidth = 50;
 const gapHeight = 175;
 const pipeSpeed = 5; // Speed at which pipes move
 
+// Power-up effect duration (5 seconds)
+const powerUpDuration = 5000;
+
 export default function App() {
   // Bird's initial position
-  const [birdPosition, setBirdPosition] = useState(screenHeight / 2 - birdHeight / 2);
+  const [birdPosition, setBirdPosition] = useState(screenHeight / 2 - birdHeight / 2); // Y's bird pos
+
   const [gravity, setGravity] = useState(0); // Controls bird's movement (gravity or upward force)
   const [isGameRunning, setIsGameRunning] = useState(false); // Game state (running or not)
   const [score, setScore] = useState(0); // Game score
+
+  const [birdTrail, setBirdTrail] = useState([]);
+
+  const [birdSize, setBirdSize] = useState({ width: birdWidth, height: birdHeight });
+  const [powerUpActive, setPowerUpActive] = useState(false);
 
   // Pipes configuration (array of pipe objects)
   const [pipes, setPipes] = useState([
@@ -37,6 +46,8 @@ export default function App() {
     setGravity(0); // No initial gravity when the game is reset
     setIsGameRunning(true); // Start the game
     setScore(0); // Reset score
+    setPowerUpActive(false);
+    setBirdSize({ width: birdWidth, height: birdHeight }); // Reset bird size here
     setPipes([ // Reset pipes to a new configuration
       {
         xPosition: screenWidth,
@@ -50,9 +61,20 @@ export default function App() {
   useEffect(() => {
     if (isGameRunning) {
       const intervalId = setInterval(() => {
-        setBirdPosition((prev) => prev + gravity); // Update bird's position
-      }, 30); // Movement interval
-      return () => clearInterval(intervalId); // Clear the interval when not running
+        setBirdPosition((prev) => {
+          const newPos = prev + gravity;
+
+          // Update the list of trail positions
+          setBirdTrail((prevTrail) => {
+            const updatedTrail = [...prevTrail, newPos]; // Adds new position 
+            return updatedTrail.length > 10 ? updatedTrail.slice(1) : updatedTrail; // 10 positions
+          });
+
+          return newPos;
+        });
+      }, 30);
+
+      return () => clearInterval(intervalId);
     }
   }, [isGameRunning, gravity]);
 
@@ -117,9 +139,9 @@ export default function App() {
 
   // Detect collisions and check if the bird goes out of bounds
   useEffect(() => {
-    const birdBottom = birdPosition + birdHeight; // Bird's bottom y-position
-    const birdTop = birdPosition; // Bird's top y-position
-    const birdXPosition = screenWidth / 2 - birdWidth / 2; // Bird's x-position
+    const birdBottom = birdPosition + birdSize.height; // Usar el tamaño dinámico del pájaro
+    const birdTop = birdPosition;
+    const birdXPosition = screenWidth / 2 - birdSize.width / 2; // Usar el tamaño dinámico del pájaro
 
     // End game if the bird hits the top of the screen
     if (birdTop <= 0) {
@@ -127,29 +149,59 @@ export default function App() {
       return;
     }
 
-    // Check for collisions with pipes
+    // Check for collisions with pipes and power-ups
     pipes.forEach(pipe => {
       const pipeLeft = pipe.xPosition;
       const pipeRight = pipe.xPosition + pipeWidth;
 
       // Check if bird is horizontally aligned with a pipe
-      if (birdXPosition + birdWidth > pipeLeft && birdXPosition < pipeRight) {
+      if (birdXPosition + birdSize.width > pipeLeft && birdXPosition < pipeRight) {
         const pipeBottomY = pipe.pipeHeight + gapHeight;
         // Check for collision with the pipe (either top or bottom)
         if (birdTop < pipe.pipeHeight || birdBottom > pipeBottomY) {
           setIsGameRunning(false); // End game if collision detected
         }
       }
-    });
 
-  }, [birdPosition, pipes]);
+      // Check if the bird touches the power-up
+      if (pipe.hasPowerUp) {
+        const powerUpX = pipe.xPosition + pipeWidth / 2;
+        const powerUpY = pipe.pipeHeight + gapHeight / 2;
+
+        if (
+          birdXPosition + birdSize.width > powerUpX - 15 && // check horizontal collision
+          birdXPosition < powerUpX + 15 && // check horizontal collision
+          birdBottom > powerUpY - 15 && // check vertical collision
+          birdTop < powerUpY + 15 // check vertical collision
+        ) {
+          // Activate the power-up
+          activatePowerUp();
+        }
+      }
+    });
+  }, [birdPosition, pipes, birdSize]);
+
+  // Function to activate the power-up
+  const activatePowerUp = () => {
+    if (!powerUpActive) { // Only activate if no other power-up is active
+      setPowerUpActive(true);
+      setBirdSize({ width: birdWidth * 0.7, height: birdHeight * 0.7 }); // Reduce size by 30%
+
+      // Restore bird size after power-up effect ends
+      setTimeout(() => {
+        setBirdSize({ width: birdWidth, height: birdHeight });
+        setPowerUpActive(false); // Reset power-up status
+      }, powerUpDuration); // Duration of the effect
+    }
+  };
 
   // Render the game view and pipes
   return (
     <TouchableWithoutFeedback onPressIn={handlePressIn} onPressOut={handlePressOut}>
       <View style={styles.container}>
         {/* Bird */}
-        <View style={[styles.bird, { top: birdPosition }]} />
+        <View style={[styles.bird, { top: birdPosition, width: birdSize.width, height: birdSize.height }]} />
+
 
         {/* Display "Game Over" and "Tap to Start" text when the game is not running */}
         {!isGameRunning && <Text style={styles.gameOver}>Game Over</Text>}
@@ -179,16 +231,32 @@ export default function App() {
             {pipe.hasPowerUp && (
               <View
                 style={[styles.powerUp, {
-                  left: pipe.xPosition + pipeWidth / 2 - birdWidth / 2,
-                  top: pipe.pipeHeight + (gapHeight / 2) - birdHeight / 2,
+                  left: pipe.xPosition + pipeWidth / 2 - 15, // Ajusta el centro del power-up con respecto a la tubería
+                  top: pipe.pipeHeight + (gapHeight / 2) - 15, // Ajusta el centro del power-up dentro del hueco
                 }]}
               />
             )}
+
           </React.Fragment>
         ))}
 
         {/* Display current score */}
         <Text style={styles.score}>Score: {score}</Text>
+
+        {/* Bird Trail */}
+        {birdTrail.map((pos, index) => (
+          <View
+            key={index}
+            style={[
+              styles.birdTrail,
+              {
+                top: pos, // Follows the position
+                opacity: (index + 1) / birdTrail.length,
+                transform: [{ scale: (index + 1) / birdTrail.length }] // Circle size gets smaller everytime
+              }
+            ]}
+          />
+        ))}
 
       </View>
     </TouchableWithoutFeedback>
@@ -242,9 +310,17 @@ const styles = StyleSheet.create({
 
   powerUp: {
     position: 'absolute',
+    width: 30,
+    height: 30,
+    backgroundColor: 'blue',
+    borderRadius: 15, // Border radius para mantenerlo circular
+  },
+
+  birdTrail: {
+    position: 'absolute',
+    backgroundColor: 'rgba(255, 255, 0, 0.5)',
     width: birdWidth,
     height: birdHeight,
-    backgroundColor: 'blue',
     borderRadius: birdWidth / 2,
-  }
+  },
 });
