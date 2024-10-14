@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableWithoutFeedback, StyleSheet, Dimensions } from 'react-native';
+import { shrinkBird } from './Powers';
 
 // Get screen dimensions
 const screenWidth = Dimensions.get('window').width;
@@ -20,7 +21,6 @@ const powerUpDuration = 5000;
 export default function App() {
   // Bird's initial position
   const [birdPosition, setBirdPosition] = useState(screenHeight / 2 - birdHeight / 2); // Y's bird pos
-
   const [gravity, setGravity] = useState(0); // Controls bird's movement (gravity or upward force)
   const [isGameRunning, setIsGameRunning] = useState(false); // Game state (running or not)
   const [score, setScore] = useState(0); // Game score
@@ -30,25 +30,27 @@ export default function App() {
   const [birdSize, setBirdSize] = useState({ width: birdWidth, height: birdHeight });
   const [powerUpActive, setPowerUpActive] = useState(false);
 
+  const availablePowerUps = [shrinkBird];
+
   // Pipes configuration (array of pipe objects)
   const [pipes, setPipes] = useState([
     {
       xPosition: screenWidth, // Pipe's initial x position (offscreen)
       pipeHeight: Math.random() * (screenHeight / 2), // Random height for each pipe
-      scored: false, // Whether the player has passed this pipe (to update score)
-      hasPowerUp: Math.random() < 0.25 // Randomly assign a power-up
+      scored: false,
+      hasPowerUp: Math.random() < 0.25
     }
   ]);
 
-  // Resets the game when it starts or when the game over condition is met
+  // Resets the game 
   const resetGame = () => {
-    setBirdPosition(screenHeight / 2 - birdHeight / 2); // Reset bird's position
-    setGravity(0); // No initial gravity when the game is reset
-    setIsGameRunning(true); // Start the game
-    setScore(0); // Reset score
+    setBirdPosition(screenHeight / 2 - birdHeight / 2);
+    setGravity(0);
+    setIsGameRunning(true);
+    setScore(0);
     setPowerUpActive(false);
-    setBirdSize({ width: birdWidth, height: birdHeight }); // Reset bird size here
-    setPipes([ // Reset pipes to a new configuration
+    setBirdSize({ width: birdWidth, height: birdHeight });
+    setPipes([ // Reset pipes 
       {
         xPosition: screenWidth,
         pipeHeight: Math.random() * (screenHeight / 2),
@@ -184,17 +186,20 @@ export default function App() {
 
   // Function to activate the power-up
   const activatePowerUp = () => {
-    if (!powerUpActive) { // Only activate if no other power-up is active
+    if (!powerUpActive) { // Solo activar si no hay otro power-up activo
       setPowerUpActive(true);
-      setBirdSize({ width: birdWidth * 0.7, height: birdHeight * 0.7 }); // Reduce size by 30%
+      // Activar el poder de reducir el tamaño del pájaro
+      shrinkBird.activatePower(() => shrinkBird.effect(setBirdSize, birdWidth, birdHeight)); // Llama a la función effect con los argumentos
 
-      // Restore bird size after power-up effect ends
+      // Restaurar el tamaño del pájaro después de que el efecto del power-up termine
       setTimeout(() => {
         setBirdSize({ width: birdWidth, height: birdHeight });
-        setPowerUpActive(false); // Reset power-up status
-      }, powerUpDuration); // Duration of the effect
+        setPowerUpActive(false); // Restablecer el estado del power-up
+      }, powerUpDuration); // Duración del efecto
     }
   };
+
+
 
   // Render the game view and pipes
   return (
