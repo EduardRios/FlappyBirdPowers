@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableWithoutFeedback, StyleSheet, Dimensions } from 'react-native';
-import { shrinkBird } from './Powers';
+import { Powerup, PowerType } from './Powers';
 
 // Get screen dimensions
 const screenWidth = Dimensions.get('window').width;
@@ -30,7 +30,17 @@ export default function App() {
   const [birdSize, setBirdSize] = useState({ width: birdWidth, height: birdHeight });
   const [powerUpActive, setPowerUpActive] = useState(false);
 
-  const availablePowerUps = [shrinkBird];
+  const availablePowerUps = [
+    new Powerup(
+      "Shrink",
+      () => {
+        setBirdSize({ width: 10, height: 10 }); 
+      },
+      () => {
+        setBirdSize({ width: birdWidth, height: birdHeight }); 
+      }
+    )
+  ];
 
   // Pipes configuration (array of pipe objects)
   const [pipes, setPipes] = useState([
@@ -58,7 +68,6 @@ export default function App() {
       }
     ]);
   };
-
 
   // Handles the bird's movement by updating its position based on gravity or upward force
   useEffect(() => {
@@ -142,10 +151,10 @@ export default function App() {
 
   // Detect collisions and check if the bird goes out of bounds
   useEffect(() => {
-    const birdBottom = birdPosition + birdSize.height; // Usar el tamaño dinámico del pájaro
+    const birdBottom = birdPosition + birdSize.height;
     const birdTop = birdPosition;
-    const birdXPosition = screenWidth / 2 - birdSize.width / 2; // Usar el tamaño dinámico del pájaro
-
+    const birdXPosition = screenWidth / 2 - birdSize.width / 2; 
+    
     // End game if the bird hits the top of the screen
     if (birdTop <= 0) {
       setIsGameRunning(false);
@@ -184,22 +193,26 @@ export default function App() {
     });
   }, [birdPosition, pipes, birdSize]);
 
-  // Function to activate the power-up
+  // Function to activate a random power-up
   const activatePowerUp = () => {
-    if (!powerUpActive) { // Solo activar si no hay otro power-up activo
-      setPowerUpActive(true);
-      // Activar el poder de reducir el tamaño del pájaro
-      shrinkBird.activatePower(() => shrinkBird.effect(setBirdSize, birdWidth, birdHeight)); // Llama a la función effect con los argumentos
+    if (!powerUpActive) {
+      // Generate a random index within the bounds of the available power-ups array
+      const randomIndex = Math.floor(Math.random() * availablePowerUps.length);
+      const selectedPowerUp = availablePowerUps[randomIndex];
 
-      // Restaurar el tamaño del pájaro después de que el efecto del power-up termine
+      // Set power-up state to active
+      setPowerUpActive(true);
+
+      // Activate the selected power-up's effect
+      selectedPowerUp.activatePower();
+
+      // After the power-up duration, disable the power-up and reset state
       setTimeout(() => {
-        setBirdSize({ width: birdWidth, height: birdHeight });
-        setPowerUpActive(false); // Restablecer el estado del power-up
-      }, powerUpDuration); // Duración del efecto
+        setPowerUpActive(false);
+        selectedPowerUp.disablePower();
+      }, powerUpDuration);
     }
   };
-
-
 
   // Render the game view and pipes
   return (
@@ -237,8 +250,8 @@ export default function App() {
             {pipe.hasPowerUp && (
               <View
                 style={[styles.powerUp, {
-                  left: pipe.xPosition + pipeWidth / 2 - 15, // Ajusta el centro del power-up con respecto a la tubería
-                  top: pipe.pipeHeight + (gapHeight / 2) - 15, // Ajusta el centro del power-up dentro del hueco
+                  left: pipe.xPosition + pipeWidth / 2 - 15,
+                  top: pipe.pipeHeight + (gapHeight / 2) - 15, 
                 }]}
               />
             )}
