@@ -30,14 +30,26 @@ export default function App() {
   const [birdSize, setBirdSize] = useState({ width: birdWidth, height: birdHeight });
   const [powerUpActive, setPowerUpActive] = useState(false);
 
+  const [wallsVisible, setWallsVisible] = useState(true);
+
+
   const availablePowerUps = [
     new Powerup(
       "Shrink",
       () => {
-        setBirdSize({ width: 10, height: 10 }); 
+        setBirdSize({ width: 10, height: 10 });
       },
       () => {
-        setBirdSize({ width: birdWidth, height: birdHeight }); 
+        setBirdSize({ width: birdWidth, height: birdHeight });
+      }
+    ),
+    new Powerup(
+      "Invisible Walls",
+      () => {
+        setWallsVisible(false);
+      },
+      () => {
+        setWallsVisible(true);
       }
     )
   ];
@@ -153,8 +165,8 @@ export default function App() {
   useEffect(() => {
     const birdBottom = birdPosition + birdSize.height;
     const birdTop = birdPosition;
-    const birdXPosition = screenWidth / 2 - birdSize.width / 2; 
-    
+    const birdXPosition = screenWidth / 2 - birdSize.width / 2;
+
     // End game if the bird hits the top of the screen
     if (birdTop <= 0) {
       setIsGameRunning(false);
@@ -169,7 +181,13 @@ export default function App() {
       // Check if bird is horizontally aligned with a pipe
       if (birdXPosition + birdSize.width > pipeLeft && birdXPosition < pipeRight) {
         const pipeBottomY = pipe.pipeHeight + gapHeight;
+
         // Check for collision with the pipe (either top or bottom)
+        // Ignore collision check if walls are invisible
+        if (!wallsVisible) {
+          return; // Skip collision check if walls are invisible
+        }
+
         if (birdTop < pipe.pipeHeight || birdBottom > pipeBottomY) {
           setIsGameRunning(false); // End game if collision detected
         }
@@ -191,7 +209,7 @@ export default function App() {
         }
       }
     });
-  }, [birdPosition, pipes, birdSize]);
+  }, [birdPosition, pipes, birdSize, wallsVisible]);
 
   // Function to activate a random power-up
   const activatePowerUp = () => {
@@ -229,35 +247,68 @@ export default function App() {
         {/* Render pipes and power-ups */}
         {pipes.map((pipe, index) => (
           <React.Fragment key={index}>
-            <View
-              style={[styles.pipe, {
-                left: pipe.xPosition,
-                height: screenHeight - (pipe.pipeHeight + gapHeight),
-                top: pipe.pipeHeight + gapHeight,
-                width: pipeWidth
-              }]}
-            />
-            <View
-              style={[styles.pipe, {
-                left: pipe.xPosition,
-                height: pipe.pipeHeight,
-                top: 0,
-                width: pipeWidth
-              }]}
-            />
+            {wallsVisible ? (
+              <>
+                <View
+                  style={[styles.pipe, {
+                    left: pipe.xPosition,
+                    height: screenHeight - (pipe.pipeHeight + gapHeight),
+                    top: pipe.pipeHeight + gapHeight,
+                    width: pipeWidth
+                  }]}
+                />
+                <View
+                  style={[styles.pipe, {
+                    left: pipe.xPosition,
+                    height: pipe.pipeHeight,
+                    top: 0,
+                    width: pipeWidth
+                  }]}
+                />
+              </>
+            ) : (
+              // Invisible walls
+              <>
+                <View
+                  style={{
+                    position: 'absolute',
+                    left: pipe.xPosition,
+                    height: screenHeight - (pipe.pipeHeight + gapHeight),
+                    top: pipe.pipeHeight + gapHeight,
+                    width: pipeWidth,
+                    backgroundColor: 'rgba(0, 0, 0, 0)',
+                    borderWidth: 1,
+                    borderColor: 'green',
+                  }}
+                />
+                <View
+                  style={{
+                    position: 'absolute',
+                    left: pipe.xPosition,
+                    height: pipe.pipeHeight,
+                    top: 0,
+                    width: pipeWidth,
+                    backgroundColor: 'rgba(0, 0, 0, 0)',
+                    borderWidth: 1,
+                    borderColor: 'green',
+                  }}
+                />
+              </>
+            )}
 
             {/* Render power-ups randomly */}
             {pipe.hasPowerUp && (
               <View
                 style={[styles.powerUp, {
                   left: pipe.xPosition + pipeWidth / 2 - 15,
-                  top: pipe.pipeHeight + (gapHeight / 2) - 15, 
+                  top: pipe.pipeHeight + (gapHeight / 2) - 15,
                 }]}
               />
             )}
 
           </React.Fragment>
         ))}
+
 
         {/* Display current score */}
         <Text style={styles.score}>Score: {score}</Text>
