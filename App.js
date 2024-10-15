@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableWithoutFeedback, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableWithoutFeedback, StyleSheet, Dimensions, Image } from 'react-native';
 import { Powerup, PowerType } from './Powers';
+import birdGif from './assets/flying.gif'
 
 // Get screen dimensions
 const screenWidth = Dimensions.get('window').width;
@@ -32,7 +33,6 @@ export default function App() {
 
   const [wallsVisible, setWallsVisible] = useState(true);
 
-
   const availablePowerUps = [
     new Powerup(
       "Shrink",
@@ -51,7 +51,18 @@ export default function App() {
       () => {
         setWallsVisible(true);
       }
+    ),
+
+    new Powerup(
+      "Reverse Gravity",
+      () => {
+        setGravity(-20);
+      },
+      () => {
+        setGravity(10); //  Normal gravity 
+      }
     )
+
   ];
 
   // Pipes configuration (array of pipe objects)
@@ -182,14 +193,14 @@ export default function App() {
       if (birdXPosition + birdSize.width > pipeLeft && birdXPosition < pipeRight) {
         const pipeBottomY = pipe.pipeHeight + gapHeight;
 
-        // Check for collision with the pipe (either top or bottom)
         // Ignore collision check if walls are invisible
         if (!wallsVisible) {
-          return; // Skip collision check if walls are invisible
+          return;
         }
 
+        // Check for collision with the pipe (either top or bottom)
         if (birdTop < pipe.pipeHeight || birdBottom > pipeBottomY) {
-          setIsGameRunning(false); // End game if collision detected
+          setIsGameRunning(false);
         }
       }
 
@@ -199,10 +210,10 @@ export default function App() {
         const powerUpY = pipe.pipeHeight + gapHeight / 2;
 
         if (
-          birdXPosition + birdSize.width > powerUpX - 15 && // check horizontal collision
-          birdXPosition < powerUpX + 15 && // check horizontal collision
-          birdBottom > powerUpY - 15 && // check vertical collision
-          birdTop < powerUpY + 15 // check vertical collision
+          birdXPosition + birdSize.width > powerUpX - 15 &&
+          birdXPosition < powerUpX + 15 &&
+          birdBottom > powerUpY - 15 &&
+          birdTop < powerUpY + 15
         ) {
           // Activate the power-up
           activatePowerUp();
@@ -236,8 +247,18 @@ export default function App() {
   return (
     <TouchableWithoutFeedback onPressIn={handlePressIn} onPressOut={handlePressOut}>
       <View style={styles.container}>
+
         {/* Bird */}
-        <View style={[styles.bird, { top: birdPosition, width: birdSize.width, height: birdSize.height }]} />
+        <Image
+          source={birdGif}
+          style={{
+            position: 'absolute',
+            top: birdPosition,
+            width: birdSize.width,
+            height: birdSize.height,
+            resizeMode: 'contain', 
+          }}
+        />
 
 
         {/* Display "Game Over" and "Tap to Start" text when the game is not running */}
@@ -313,20 +334,7 @@ export default function App() {
         {/* Display current score */}
         <Text style={styles.score}>Score: {score}</Text>
 
-        {/* Bird Trail */}
-        {birdTrail.map((pos, index) => (
-          <View
-            key={index}
-            style={[
-              styles.birdTrail,
-              {
-                top: pos, // Follows the position
-                opacity: (index + 1) / birdTrail.length,
-                transform: [{ scale: (index + 1) / birdTrail.length }] // Circle size gets smaller everytime
-              }
-            ]}
-          />
-        ))}
+        
 
       </View>
     </TouchableWithoutFeedback>
@@ -383,7 +391,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     backgroundColor: 'blue',
-    borderRadius: 15, // Border radius para mantenerlo circular
+    borderRadius: 15,
   },
 
   birdTrail: {
