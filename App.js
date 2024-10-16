@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableWithoutFeedback, StyleSheet, Dimensions, Image } from 'react-native';
 import { Powerup, PowerType } from './Powers';
 import birdGif from './assets/flying.gif'
+import pipe from './assets/flying.gif'
 
 // Get screen dimensions
 const screenWidth = Dimensions.get('window').width;
@@ -15,6 +16,9 @@ const birdHeight = 30;
 const pipeWidth = 50;
 const gapHeight = 175;
 const pipeSpeed = 5; // Speed at which pipes move
+
+const usedPowerUps = new Set();
+
 
 // Power-up effect duration (5 seconds)
 const powerUpDuration = 5000;
@@ -225,21 +229,28 @@ export default function App() {
   // Function to activate a random power-up
   const activatePowerUp = () => {
     if (!powerUpActive) {
-      // Generate a random index within the bounds of the available power-ups array
-      const randomIndex = Math.floor(Math.random() * availablePowerUps.length);
-      const selectedPowerUp = availablePowerUps[randomIndex];
+      // Filtrar los power-ups que no han sido usados
+      const unusedPowerUps = availablePowerUps.filter(p => !usedPowerUps.has(p.name));
 
-      // Set power-up state to active
-      setPowerUpActive(true);
+      if (unusedPowerUps.length === 0) {
+        // Si todos los power-ups ya fueron usados, reiniciar el Set
+        usedPowerUps.clear();
+      } else {
+        // Elegir uno al azar de los que no se han usado
+        const randomIndex = Math.floor(Math.random() * unusedPowerUps.length);
+        const selectedPowerUp = unusedPowerUps[randomIndex];
 
-      // Activate the selected power-up's effect
-      selectedPowerUp.activatePower();
+        // Activar el power-up y añadirlo al Set
+        usedPowerUps.add(selectedPowerUp.name);
+        setPowerUpActive(true);
+        selectedPowerUp.activatePower();
 
-      // After the power-up duration, disable the power-up and reset state
-      setTimeout(() => {
-        setPowerUpActive(false);
-        selectedPowerUp.disablePower();
-      }, powerUpDuration);
+        // Desactivar el power-up después de la duración establecida
+        setTimeout(() => {
+          setPowerUpActive(false);
+          selectedPowerUp.disablePower();
+        }, powerUpDuration);
+      }
     }
   };
 
@@ -256,7 +267,7 @@ export default function App() {
             top: birdPosition,
             width: birdSize.width,
             height: birdSize.height,
-            resizeMode: 'contain', 
+            resizeMode: 'contain',
           }}
         />
 
@@ -334,7 +345,7 @@ export default function App() {
         {/* Display current score */}
         <Text style={styles.score}>Score: {score}</Text>
 
-        
+
 
       </View>
     </TouchableWithoutFeedback>
